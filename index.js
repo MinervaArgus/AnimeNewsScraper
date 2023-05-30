@@ -1,8 +1,6 @@
 const puppeteer = require('puppeteer');
 const ExcelJS = require('exceljs');
-const dotenv = require('dotenv');
-
-dotenv.config();
+const xml2js = require('xml2js');
 
 // Scraping MAL News
 (async () => {
@@ -42,6 +40,7 @@ dotenv.config();
         return results;
     });
 
+    // Scraping anime Megathread hot comments
     const animeMegathreadResponse = await fetch('https://www.reddit.com/r/anime/comments/13t3fba/anime_questions_recommendations_and_discussion/.json?sort=hot&limit=200', {
         headers: { 'User-Agent': 'Mozilla/5.0' } 
     });
@@ -52,6 +51,7 @@ dotenv.config();
         link: 'https://www.reddit.com' + comment.data.permalink
     }));
 
+    // Scraping animenews subreddit hot posts
     const animenewsSubredditResponse = await fetch('https://www.reddit.com/r/animenews/new/.json?limit=50', {
         headers: { 'User-Agent': 'Mozilla/5.0' } 
     });
@@ -64,12 +64,23 @@ dotenv.config();
         comments: post.data.num_comments
     }));
 
+    // Scraping crunchyroll rss feed
+    const rssResponse = await fetch('http://feeds.feedburner.com/crunchyroll/animenews');
+    const rssData = await rssResponse.text();
+    const rssJson = await xml2js.parseStringPromise(rssData);
+
+    const rssPosts = rssJson.rss.channel[0].item.map(post => ({
+        title: post.title[0],
+        link: post.link[0],
+        description: post.description[0]
+    }));
 
     const workbook = new ExcelJS.Workbook();
     const malWorksheet = workbook.addWorksheet('MyAnimeList News');
     const annWorksheet = workbook.addWorksheet('Anime News Network News');
     const animeRedWorksheet = workbook.addWorksheet('Anime Megathread Top Comments');
     const animeNewsSubWorksheet = workbook.addWorksheet('AnimeNews Subreddit');
+    const crunchyrollWorksheet = workbook.addWorksheet('Crunchyroll News');
 
     const columns = [
         { header: 'Title', key: 'title', width: 30 },
@@ -91,10 +102,17 @@ dotenv.config();
         { header: 'Comments', key: 'comments', width: 10 },
     ];
 
+    const rssColumns = [
+        { header: 'Title', key: 'title', width: 100 },
+        { header: 'Link', key: 'link', width: 50 },
+        { header: 'Description', key: 'description', width: 200 },
+    ];
+
     malWorksheet.columns = columns;
     annWorksheet.columns = columns;
     animeRedWorksheet.columns = redditColumns;
     animeNewsSubWorksheet.columns = animeNewsSubColumns;
+    crunchyrollWorksheet.columns = rssColumns;
 
     malNews.forEach(news => {
         const row = malWorksheet.addRow(news);
@@ -114,6 +132,11 @@ dotenv.config();
     animenewsSubredditPosts.forEach(post => {
         const row = animeNewsSubWorksheet.addRow(post);
         row.height = 200;
+    })
+
+    rssPosts.forEach(post => {
+        const row = crunchyrollWorksheet.addRow(post);
+        row.height = 100;
     })
 
     await workbook.xlsx.writeFile('anime_news.xlsx');
