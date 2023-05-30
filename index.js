@@ -1,6 +1,10 @@
 const puppeteer = require('puppeteer');
 const ExcelJS = require('exceljs');
+const dotenv = require('dotenv');
 
+dotenv.config();
+
+// Scraping MAL News
 (async () => {
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
@@ -38,20 +42,34 @@ const ExcelJS = require('exceljs');
         return results;
     });
 
-    const response = await fetch('https://www.reddit.com/r/anime/comments/13t3fba/anime_questions_recommendations_and_discussion/.json?sort=top&limit=200', {
+    const animeMegathreadResponse = await fetch('https://www.reddit.com/r/anime/comments/13t3fba/anime_questions_recommendations_and_discussion/.json?sort=hot&limit=200', {
         headers: { 'User-Agent': 'Mozilla/5.0' } 
     });
-    const redditThread = await response.json();
+    const redditThread = await animeMegathreadResponse.json();
     const redditComments = redditThread[1].data.children.map(comment => ({
         author: comment.data.author,
         comment: comment.data.body,
         link: 'https://www.reddit.com' + comment.data.permalink
     }));
 
+    const animenewsSubredditResponse = await fetch('https://www.reddit.com/r/animenews/new/.json?limit=50', {
+        headers: { 'User-Agent': 'Mozilla/5.0' } 
+    });
+    const animenewsSubredditData = await animenewsSubredditResponse.json();
+    const animenewsSubredditPosts = animenewsSubredditData.data.children.map(post => ({
+        title: post.data.title,
+        author: post.data.author,
+        link: 'https://www.reddit.com' + post.data.permalink,
+        upvotes: post.data.ups,
+        comments: post.data.num_comments
+    }));
+
+
     const workbook = new ExcelJS.Workbook();
     const malWorksheet = workbook.addWorksheet('MyAnimeList News');
     const annWorksheet = workbook.addWorksheet('Anime News Network News');
     const animeRedWorksheet = workbook.addWorksheet('Anime Megathread Top Comments');
+    const animeNewsSubWorksheet = workbook.addWorksheet('AnimeNews Subreddit');
 
     const columns = [
         { header: 'Title', key: 'title', width: 30 },
@@ -65,9 +83,18 @@ const ExcelJS = require('exceljs');
         { header: 'Link', key: 'link', width: 50 },
     ];
 
+    const animeNewsSubColumns = [
+        { header: 'Title', key: 'title', width: 100 },
+        { header: 'Author', key: 'author', width: 20 },
+        { header: 'Link', key: 'link', width: 50 },
+        { header: 'Upvotes', key: 'upvotes', width: 10 },
+        { header: 'Comments', key: 'comments', width: 10 },
+    ];
+
     malWorksheet.columns = columns;
     annWorksheet.columns = columns;
     animeRedWorksheet.columns = redditColumns;
+    animeNewsSubWorksheet.columns = animeNewsSubColumns;
 
     malNews.forEach(news => {
         const row = malWorksheet.addRow(news);
@@ -83,6 +110,11 @@ const ExcelJS = require('exceljs');
         const row = animeRedWorksheet.addRow(comment);
         row.height = 200;
     });
+
+    animenewsSubredditPosts.forEach(post => {
+        const row = animeNewsSubWorksheet.addRow(post);
+        row.height = 200;
+    })
 
     await workbook.xlsx.writeFile('anime_news.xlsx');
 

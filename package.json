@@ -10,8 +10,10 @@
   "author": "Jackson Nevins",
   "license": "ISC",
   "dependencies": {
+    "dotenv": "^16.0.3",
     "exceljs": "^4.3.0",
     "node-fetch": "^3.3.1",
-    "puppeteer": "^20.3.0"
+    "puppeteer": "^20.3.0",
+    "xml2js": "^0.6.0"
   }
 }
