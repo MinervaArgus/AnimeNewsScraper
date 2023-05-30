@@ -3,7 +3,7 @@ const ExcelJS = require('exceljs');
 const xml2js = require('xml2js');
 
 // Scraping MAL News
-(async () => {
+module.exports = async (req, res) => {
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
     await page.goto('https://myanimelist.net/news');
@@ -139,7 +139,11 @@ const xml2js = require('xml2js');
         row.height = 100;
     })
 
-    await workbook.xlsx.writeFile('anime_news.xlsx');
+    const buffer = await workbook.xlsx.writeBuffer();
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=anime_news.xlsx');
+    res.send(buffer);
 
     await browser.close();
-})();
+};
